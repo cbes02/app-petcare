@@ -1,111 +1,106 @@
 import streamlit as st
+import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.cluster import KMeans
 
-st.set_page_config(page_title="Profilo Cliente PetCare", layout="centered")
+# Palette colori e descrizioni
+palette = {
+    "Cacciatori di offerte": "deeppink",
+    "Pet lover organizzati": "sandybrown",
+    "Animali affezionati": "dimgray",
+    "Amici animali premium": "mediumseagreen"
+}
 
-# ================================
-# 1. DATI FISSI PER OGNI CLUSTER
-# ================================
+strategie = {
+    "Cacciatori di offerte": [
+        "📰 Newsletter settimanale",
+        "🎁 Bundle 2+1 snack",
+        "🏆 Programma punti",
+        "🛒 Offerte in homepage"
+    ],
+    "Pet lover organizzati": [
+        "📦 Abbonamenti personalizzati",
+        "⏰ Reminder riacquisto",
+        "✨ Promo early-access"
+    ],
+    "Animali affezionati": [
+        "📧 Email mensile personalizzata",
+        "🎉 Sconti ricorrenze",
+        "💎 Up-selling mirato",
+        "🧪 Test nuovi prodotti"
+    ],
+    "Amici animali premium": [
+        "💎 Upselling mirato",
+        "🎁 Packaging premium",
+        "📖 Storytelling via email",
+        "🎫 Programma VIP"
+    ]
+}
+
+# Simulazione dati coerente con il tuo grafico
 np.random.seed(42)
+cluster_specs = {
+    "Cacciatori di offerte": {"mean": (100, 10), "std": (5, 1), "count": 50},
+    "Pet lover organizzati": {"mean": (115, 13), "std": (5, 1), "count": 50},
+    "Animali affezionati": {"mean": (130, 5), "std": (5, 1), "count": 50},
+    "Amici animali premium": {"mean": (160, 4), "std": (5, 1), "count": 50},
+}
 
-cluster_0 = np.random.normal([100, 10], [3, 1], size=(50, 2))  # Cacciatori di offerte
-cluster_1 = np.random.normal([115, 13], [3, 1], size=(50, 2))  # Pet lover organizzati
-cluster_2 = np.random.normal([130, 5],  [3, 1], size=(50, 2))  # Animali affezionati
-cluster_3 = np.random.normal([160, 4],  [3, 1], size=(50, 2))  # Amici animali premium
+data = []
+for cluster, specs in cluster_specs.items():
+    x = np.random.normal(specs["mean"][0], specs["std"][0], specs["count"])
+    y = np.random.normal(specs["mean"][1], specs["std"][1], specs["count"])
+    for xi, yi in zip(x, y):
+        data.append({
+            "Spesa": xi,
+            "Acquisti": yi,
+            "Cluster": cluster
+        })
 
-X = np.vstack((cluster_0, cluster_1, cluster_2, cluster_3))
+df = pd.DataFrame(data)
 
-# ================================
-# 2. CLUSTERING
-# ================================
-kmeans = KMeans(n_clusters=4, random_state=42, n_init=10)
-kmeans.fit(X)
-centroidi = kmeans.cluster_centers_
+# Centroidi stimati
+centroids = {
+    "Cacciatori di offerte": (100, 10),
+    "Pet lover organizzati": (115, 13),
+    "Animali affezionati": (130, 5),
+    "Amici animali premium": (160, 4)
+}
 
-# ================================
-# 3. MAPPING DEI NOMI AI CLUSTER
-# ================================
-etichette = [
-    "Cacciatori di offerte",
-    "Pet lover organizzati",
-    "Animali affezionati",
-    "Amici animali premium"
-]
+# Funzione per assegnare cluster
+def assegna_cluster(x, y):
+    distanze = {k: np.sqrt((x - cx) ** 2 + (y - cy) ** 2) for k, (cx, cy) in centroids.items()}
+    return min(distanze, key=distanze.get)
 
-# Centroidi veri usati per generare i cluster
-centroidi_reali = np.array([
-    [100, 10],
-    [115, 13],
-    [130, 5],
-    [160, 4]
-])
+# Streamlit UI
+st.title("\U0001F43E Scopri il tuo profilo cliente PetCare!")
+st.markdown("""
+Inserisci la **spesa media mensile** e il **numero di acquisti** per scoprire a quale cluster appartieni e quali strategie sono più adatte a te.
+""")
 
-# Calcola distanza da centroidi del modello ai centroidi reali
-distanze = np.linalg.norm(centroidi[:, None] - centroidi_reali[None, :], axis=2)
-mappatura = {}
-for i, indice in enumerate(np.argmin(distanze, axis=0)):
-    mappatura[indice] = etichette[i]
+spesa = st.number_input("\U0001F4B0 Spesa media mensile (€)", min_value=0.0, value=100.0, step=1.0)
+acquisti = st.number_input("\U0001F6CD Numero di acquisti mensili", min_value=0, value=5, step=1)
 
-# ================================
-# 4. STREAMLIT UI
-# ================================
-st.title("🐾 Scopri il tuo profilo cliente PetCare!")
+profilo = assegna_cluster(spesa, acquisti)
+st.markdown(f"### 🎯 Il tuo cluster è: **{profilo}**")
+st.markdown("**\U0001F4CC Strategie consigliate per questo profilo:**")
+for s in strategie[profilo]:
+    st.write(f"- {s}")
 
-st.markdown("Inserisci la **spesa media mensile** e il **numero di acquisti** per scoprire a quale cluster appartieni e quali strategie sono più adatte a te.")
+# Grafico
+fig, ax = plt.subplots(figsize=(10, 6))
+for cluster in df["Cluster"].unique():
+    subset = df[df["Cluster"] == cluster]
+    ax.scatter(subset["Spesa"], subset["Acquisti"], label=cluster, color=palette[cluster], edgecolors='black')
 
-spesa = st.number_input("💰 Spesa media mensile (€)", min_value=0.0, step=1.0)
-acquisti = st.number_input("🛍️ Numero di acquisti mensili", min_value=0, step=1)
+for cluster, (x, y) in centroids.items():
+    ax.scatter(x, y, color=palette[cluster], marker='X', s=200, edgecolors='black', label=None)
 
-if spesa and acquisti:
-    nuovo_cliente = np.array([[spesa, acquisti]])
-    cluster_assegnato = kmeans.predict(nuovo_cliente)[0]
-    nome_cluster = mappatura[cluster_assegnato]
+# Nuovo punto utente
+ax.scatter(spesa, acquisti, color="gray", marker='*', s=200, edgecolors='black', label="Nuovo Cliente")
 
-    st.markdown(f"🎯 **Il tuo cluster è:** 🐶 **{nome_cluster}**")
-
-    # Strategie esempio (puoi personalizzarle)
-    strategie = {
-        "Cacciatori di offerte": [
-            "📩 Newsletter settimanale",
-            "🎁 Bundle 2+1 snack",
-            "🏆 Programma punti",
-            "🛒 Offerte in homepage"
-        ],
-        "Pet lover organizzati": [
-            "📅 Abbonamenti personalizzati",
-            "🔔 Reminder per riacquisti",
-            "🆕 Early access novità"
-        ],
-        "Animali affezionati": [
-            "💌 Email mensile personalizzata",
-            "🎉 Sconti ricorrenze",
-            "💎 Up-selling mirato",
-            "🧪 Test nuovi prodotti"
-        ],
-        "Amici animali premium": [
-            "💎 Upselling mirato",
-            "🎁 Packaging premium",
-            "📚 Storytelling via email",
-            "📛 Programma VIP"
-        ]
-    }
-
-    st.markdown("📌 **Strategie consigliate per questo profilo:**")
-    for s in strategie[nome_cluster]:
-        st.markdown(f"- {s}")
-
-    # ================================
-    # 5. PLOT CON NUOVO CLIENTE
-    # ================================
-    plt.figure(figsize=(8, 6))
-    plt.scatter(X[:, 0], X[:, 1], c=kmeans.labels_, cmap='Pastel1', alpha=0.6)
-    plt.scatter(centroidi[:, 0], centroidi[:, 1], c='red', s=200, marker='X', label='Centroidi')
-    plt.scatter(spesa, acquisti, c='black', marker='*', s=200, label='Nuovo Cliente')
-
-    plt.xlabel("Spesa media mensile (€)")
-    plt.ylabel("Numero di acquisti mensili")
-    plt.title("Segmentazione clienti con K-Means")
-    plt.legend()
-    st.pyplot(plt)
+ax.set_xlabel("Spesa media mensile (€)")
+ax.set_ylabel("Numero di acquisti mensili")
+ax.set_title("Segmentazione clienti con K-Means")
+ax.legend()
+st.pyplot(fig)
