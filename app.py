@@ -3,75 +3,80 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 
-# Titolo
-st.title("🐾 Scopri il tuo profilo cliente PetCare!")
+st.set_page_config(page_title="Profilo Cliente PetCare", layout="centered")
 
-# Descrizione
-st.write("Inserisci la **spesa media mensile** e il **numero di acquisti** per scoprire a quale cluster appartieni e quali strategie sono più adatte a te.")
-
-# Input utente
-spesa = st.number_input("💰 Spesa media mensile (€)", min_value=0.0, step=10.0, format="%.2f")
-acquisti = st.number_input("🛍️ Numero di acquisti mensili", min_value=0, step=1)
-
-# Dataset semplificato (dati finti simulati)
+# ================================
+# 1. DATI FISSI PER OGNI CLUSTER
+# ================================
 np.random.seed(42)
-cluster1 = np.random.normal(loc=[100, 10], scale=[5, 2], size=(50, 2))   # Cacciatori di offerte
-cluster2 = np.random.normal(loc=[115, 13], scale=[5, 2], size=(50, 2))   # Per lover organizzati
-cluster3 = np.random.normal(loc=[130, 5], scale=[5, 2], size=(50, 2))    # Animali affezionati
-cluster4 = np.random.normal(loc=[160, 4], scale=[5, 2], size=(50, 2))    # Amici animali premium
 
-dati = np.vstack((cluster1, cluster2, cluster3, cluster4))
+cluster_0 = np.random.normal([100, 10], [3, 1], size=(50, 2))  # Cacciatori di offerte
+cluster_1 = np.random.normal([115, 13], [3, 1], size=(50, 2))  # Pet lover organizzati
+cluster_2 = np.random.normal([130, 5],  [3, 1], size=(50, 2))  # Animali affezionati
+cluster_3 = np.random.normal([160, 4],  [3, 1], size=(50, 2))  # Amici animali premium
 
-# Clustering
-kmeans = KMeans(n_clusters=4, n_init=10)
-kmeans.fit(dati)
+X = np.vstack((cluster_0, cluster_1, cluster_2, cluster_3))
+
+# ================================
+# 2. CLUSTERING
+# ================================
+kmeans = KMeans(n_clusters=4, random_state=42, n_init=10)
+kmeans.fit(X)
 centroidi = kmeans.cluster_centers_
 
-# Classifica centroidi per posizione e assegna nomi corretti
-centroidi_con_nomi = {
-    "Cacciatori di offerte": None,
-    "Per lover organizzati": None,
-    "Animali affezionati": None,
-    "Amici animali premium": None
-}
+# ================================
+# 3. MAPPING DEI NOMI AI CLUSTER
+# ================================
+etichette = [
+    "Cacciatori di offerte",
+    "Pet lover organizzati",
+    "Animali affezionati",
+    "Amici animali premium"
+]
 
-for i, centroide in enumerate(centroidi):
-    spesa_c, acquisti_c = centroide
-    if spesa_c < 110 and acquisti_c >= 9:
-        centroidi_con_nomi["Cacciatori di offerte"] = i
-    elif spesa_c < 125 and acquisti_c > 11:
-        centroidi_con_nomi["Per lover organizzati"] = i
-    elif spesa_c > 125 and acquisti_c <= 6 and spesa_c < 150:
-        centroidi_con_nomi["Animali affezionati"] = i
-    elif spesa_c >= 150:
-        centroidi_con_nomi["Amici animali premium"] = i
+# Centroidi veri usati per generare i cluster
+centroidi_reali = np.array([
+    [100, 10],
+    [115, 13],
+    [130, 5],
+    [160, 4]
+])
 
-# Predizione nuovo cliente
-nuovo_cliente = np.array([[spesa, acquisti]])
-cluster_utente = kmeans.predict(nuovo_cliente)[0]
+# Calcola distanza da centroidi del modello ai centroidi reali
+distanze = np.linalg.norm(centroidi[:, None] - centroidi_reali[None, :], axis=2)
+mappatura = {}
+for i, indice in enumerate(np.argmin(distanze, axis=0)):
+    mappatura[indice] = etichette[i]
 
-# Trova il nome del cluster
-nome_cluster = None
-for nome, index in centroidi_con_nomi.items():
-    if index == cluster_utente:
-        nome_cluster = nome
+# ================================
+# 4. STREAMLIT UI
+# ================================
+st.title("🐾 Scopri il tuo profilo cliente PetCare!")
 
-# Mostra risultato
-if nome_cluster:
-    st.markdown(f"🎯 **Il tuo cluster è:** {nome_cluster}")
+st.markdown("Inserisci la **spesa media mensile** e il **numero di acquisti** per scoprire a quale cluster appartieni e quali strategie sono più adatte a te.")
 
-    # Strategie per ogni cluster
+spesa = st.number_input("💰 Spesa media mensile (€)", min_value=0.0, step=1.0)
+acquisti = st.number_input("🛍️ Numero di acquisti mensili", min_value=0, step=1)
+
+if spesa and acquisti:
+    nuovo_cliente = np.array([[spesa, acquisti]])
+    cluster_assegnato = kmeans.predict(nuovo_cliente)[0]
+    nome_cluster = mappatura[cluster_assegnato]
+
+    st.markdown(f"🎯 **Il tuo cluster è:** 🐶 **{nome_cluster}**")
+
+    # Strategie esempio (puoi personalizzarle)
     strategie = {
         "Cacciatori di offerte": [
-            "📰 Newsletter settimanale",
+            "📩 Newsletter settimanale",
             "🎁 Bundle 2+1 snack",
             "🏆 Programma punti",
             "🛒 Offerte in homepage"
         ],
-        "Per lover organizzati": [
-            "📦 Abbonamenti personalizzati",
-            "📧 Reminder riacquisto",
-            "🚀 Promo early-access"
+        "Pet lover organizzati": [
+            "📅 Abbonamenti personalizzati",
+            "🔔 Reminder per riacquisti",
+            "🆕 Early access novità"
         ],
         "Animali affezionati": [
             "💌 Email mensile personalizzata",
@@ -80,14 +85,27 @@ if nome_cluster:
             "🧪 Test nuovi prodotti"
         ],
         "Amici animali premium": [
-            "💠 Upselling mirato",
+            "💎 Upselling mirato",
             "🎁 Packaging premium",
-            "📖 Storytelling via email",
-            "🎫 Programma VIP"
+            "📚 Storytelling via email",
+            "📛 Programma VIP"
         ]
     }
 
     st.markdown("📌 **Strategie consigliate per questo profilo:**")
     for s in strategie[nome_cluster]:
-        st.write(f"- {s}")
+        st.markdown(f"- {s}")
 
+    # ================================
+    # 5. PLOT CON NUOVO CLIENTE
+    # ================================
+    plt.figure(figsize=(8, 6))
+    plt.scatter(X[:, 0], X[:, 1], c=kmeans.labels_, cmap='Pastel1', alpha=0.6)
+    plt.scatter(centroidi[:, 0], centroidi[:, 1], c='red', s=200, marker='X', label='Centroidi')
+    plt.scatter(spesa, acquisti, c='black', marker='*', s=200, label='Nuovo Cliente')
+
+    plt.xlabel("Spesa media mensile (€)")
+    plt.ylabel("Numero di acquisti mensili")
+    plt.title("Segmentazione clienti con K-Means")
+    plt.legend()
+    st.pyplot(plt)
