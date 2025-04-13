@@ -1,39 +1,73 @@
 import streamlit as st
 import numpy as np
 from sklearn.cluster import KMeans
+import matplotlib.pyplot as plt
 
-st.title("🐾 Scopri il tuo profilo cliente PetCare!")
-
-st.write("Inserisci la **spesa media mensile** e il **numero di acquisti** per scoprire a quale cluster appartieni e quali strategie sono più adatte a te.")
-
-spesa = st.number_input("💰 Spesa media mensile (€)", min_value=0.0, value=100.0, step=10.0)
-acquisti = st.number_input("🛍️ Numero di acquisti mensili", min_value=0, value=5, step=1)
-
+# Dati simulati: X = [spesa media, numero acquisti]
 np.random.seed(42)
-
-cluster1 = np.column_stack((np.random.normal(loc=100, scale=5, size=50), np.random.normal(loc=10, scale=2, size=50)))
-cluster2 = np.column_stack((np.random.normal(loc=115, scale=5, size=50), np.random.normal(loc=13, scale=2, size=50)))
-cluster3 = np.column_stack((np.random.normal(loc=130, scale=5, size=50), np.random.normal(loc=5, scale=2, size=50)))
-cluster4 = np.column_stack((np.random.normal(loc=160, scale=5, size=50), np.random.normal(loc=4, scale=2, size=50)))
+cluster1 = np.random.normal([100, 10], [5, 2], size=(50, 2))
+cluster2 = np.random.normal([115, 13], [5, 2], size=(50, 2))
+cluster3 = np.random.normal([130, 5], [5, 2], size=(50, 2))
+cluster4 = np.random.normal([160, 4], [5, 2], size=(50, 2))
 
 X = np.vstack((cluster1, cluster2, cluster3, cluster4))
-X[:, 1] = np.clip(X[:, 1], a_min=1, a_max=None)
 
-nuovo_cliente = np.array([[spesa, acquisti]])
-
-kmeans = KMeans(n_clusters=4, random_state=0)
+# Applica il modello KMeans
+kmeans = KMeans(n_clusters=4, random_state=42)
 kmeans.fit(X)
-cluster_assegnato = kmeans.predict(nuovo_cliente)[0]
 
-strategie = {
-    0: {"nome": "🎯 Cacciatori di offerte", "strategie": ["📰 Newsletter settimanale", "🎁 Bundle 2+1 snack", "🏆 Programma punti", "🛒 Offerte in homepage"]},
-    1: {"nome": "📦 Per lover organizzati", "strategie": ["📬 Abbonamenti", "⏰ Reminder riordino", "🚀 Promo early-access"]},
-    2: {"nome": "🐕‍🦺 Animali affezionati", "strategie": ["📅 Email mensile", "🎉 Sconti ricorrenze", "🔝 Up-selling mirato", "🧪 Test prodotti"]},
-    3: {"nome": "👑 Amici animali premium", "strategie": ["💎 Upselling mirato", "🎁 Packaging premium", "📖 Storytelling via email", "🎟️ Programma VIP"]}
+# Descrizioni dei cluster
+cluster_descrizioni = {
+    0: ("💌 Cacciatori di offerte", [
+        "📰 Newsletter settimanale",
+        "🎁 Bundle 2+1 snack",
+        "🏆 Programma punti",
+        "🛒 Offerte in homepage"
+    ]),
+    1: ("📅 Per lover organizzati", [
+        "📦 Abbonamenti personalizzati",
+        "📧 Reminder riacquisto",
+        "🚀 Promo early-access"
+    ]),
+    2: ("🐾 Animali affezionati", [
+        "💌 Email mensile personalizzata",
+        "🎉 Sconti ricorrenze",
+        "💎 Up-selling mirato",
+        "🧪 Test nuovi prodotti"
+    ]),
+    3: ("👑 Amici animali premium", [
+        "💎 Upselling mirato",
+        "🎁 Packaging premium",
+        "📚 Storytelling via email",
+        "💎 Programma VIP"
+    ])
 }
 
-st.subheader(f"🎯 Il tuo cluster è: **{strategie[cluster_assegnato]['nome']}**")
+# UI
+st.title("🐾 Scopri il tuo profilo cliente PetCare!")
+st.write("Inserisci la **spesa media mensile** e il **numero di acquisti** per scoprire a quale cluster appartieni e quali strategie sono più adatte a te.")
 
-st.write("📌 Strategie consigliate per questo profilo:")
-for s in strategie[cluster_assegnato]["strategie"]:
-    st.markdown(f"- {s}")
+spesa = st.number_input("💰 Spesa media mensile (€)", min_value=0.0, step=10.0)
+acquisti = st.number_input("🛍️ Numero di acquisti mensili", min_value=0, step=1)
+
+if spesa > 0 and acquisti > 0:
+    nuovo_cliente = np.array([[spesa, acquisti]])
+    cluster = kmeans.predict(nuovo_cliente)[0]
+
+    nome_cluster, strategie = cluster_descrizioni[cluster]
+
+    st.markdown(f"🎯 **Il tuo cluster è:** {nome_cluster}")
+    st.markdown("📌 **Strategie consigliate per questo profilo:**")
+    for s in strategie:
+        st.write(f"- {s}")
+
+    # Grafico
+    plt.figure(figsize=(8, 6))
+    plt.scatter(X[:, 0], X[:, 1], c=kmeans.labels_, cmap='tab10', alpha=0.6)
+    plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1], c='red', s=200, marker='X', label='Centroidi')
+    plt.scatter(spesa, acquisti, color='black', s=100, marker='*', label='Nuovo Cliente')
+    plt.xlabel("Spesa media mensile")
+    plt.ylabel("Numero di acquisti mensili")
+    plt.title("Segmentazione clienti con K-Means")
+    plt.legend()
+    st.pyplot(plt)
